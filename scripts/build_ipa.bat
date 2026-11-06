@@ -110,13 +110,29 @@ if "!RUNID!"=="" goto waitrun
 if "!RUNID!"=="!PREV!" goto waitrun
 
 echo Lan build: !RUNID!  ^(thuong mat 10-15 phut, vui long doi...^)
+set RETRIES=0
+:watchrun
 gh run watch !RUNID! --exit-status
-if errorlevel 1 (
-  echo.
-  echo [LOI] Build that bai. Xem chi tiet:  gh run view !RUNID! --log-failed
-  gh run view !RUNID! --log-failed
-  pause & exit /b 1
-)
+if not errorlevel 1 goto downloadipa
+
+echo.
+echo [LOI] Build that bai. Chi tiet buoc bi loi:
+gh run view !RUNID! --log-failed
+echo.
+echo ----------------------------------------------------------------
+echo  Neu o tren KHONG co dong loi nao, hoac chay khoang 15 phut roi dung,
+echo  thuong la GitHub het may Mac ^(loi ha tang, khong phai loi code^).
+echo  Xem ly do:  gh run view !RUNID!
+echo ----------------------------------------------------------------
+if !RETRIES! GEQ 2 ( pause & exit /b 1 )
+choice /m "Chay lai build nay"
+if errorlevel 2 ( pause & exit /b 1 )
+set /a RETRIES+=1
+gh run rerun !RUNID! --failed
+timeout /t 10 /nobreak >nul
+goto watchrun
+
+:downloadipa
 
 rem --- 6. Tai file ipa ---
 if exist output rmdir /s /q output
