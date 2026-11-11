@@ -1,0 +1,43 @@
+name: Build iOS IPA (unsigned)
+
+# Chay thu cong (workflow_dispatch) hoac qua scripts\build_ipa.bat.
+# File .ipa KHONG ky: AltStore/Sideloadly se ky bang Apple ID cua ban khi cai.
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      # Flutter moi bat san Swift Package Manager. Cac goi SPM co "resource bundle" (nhu speech_to_text)
+      # doi ky so (Development Team) nen build khong ky bi loi. Tat SPM de dung CocoaPods.
+      - name: Tat Swift Package Manager (dung CocoaPods)
+        run: flutter config --no-enable-swift-package-manager
+
+      - run: flutter pub get
+
+      - name: Build iOS (khong ky)
+        run: flutter build ios --release --no-codesign
+
+      - name: Chi tiet loi iOS (chi chay khi build loi)
+        if: failure()
+        run: flutter build ios --release --no-codesign -v 2>&1 | grep -E 'error:|Signing for|requires a development team|Failed' | head -80
+
+      - name: Dong goi hapy.ipa
+        run: |
+          mkdir Payload
+          cp -r build/ios/iphoneos/Runner.app Payload/
+          zip -r hapy.ipa Payload
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hapy-ipa
+          path: hapy.ipa
+          retention-days: 1
